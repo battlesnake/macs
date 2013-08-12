@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# MACS: Maintains a table of MAC address / IP address / hostname records, and
+# scans the network to update the table
+#
+# Requires: bash, sqlite3, perl, sort, nmap, ping, awk, join, sed
+
+
+
+pushd /etc/macs >/dev/null
+trap "popd >/dev/null" EXIT
+
+
+
+# Get command
+command=$1
+
+
+
+# Show current MACS table
+if [ "$command" == "show" ]; then
+	(
+		echo -e "IP address\tMAC address\t\tHostname"
+		cat macs.db
+	) | tr '\t' '*' | column -ts'*'
+	exit 0
+fi
+
+
+
+# Clear the MACS table
+if [ "$command" == "clear" ]; then
+	echo "" > macs.db
+	echo "Macs database cleared"
+	exit 0
+fi
+
+
+
+# Update MACS table (rescan)
+if [ "$command" == "update" ]; then
+
+	# Sort IP address (must be first field)
+	sortstr="-k1n -k2n -k3n -k4n -t."
+	sortmac="-k1n -k2n -k3n -k4n -k5n -k6n -t:"
+
+	# Get IP=hostname
+	echo -n "Getting ip/hostname info"
+	iphost=$(
+		mkfifo nmapout.tmp
+		trap "rm -f nmapout.tmp" EXIT
+		nmap -sn 192.168.0.0/24 -oG nmapout.tmp 2>/dev/null 1>/dev/null &
+		grep -v "#" nmapout.tmp |
+		perl -pe 's/^.* (([0-9]{1,3}\.){3}[0-9]{1,3}) \(([A-Za-z0-9-_\.]+)\).*$/$1\t$3/g' |
+		sort $sortstr
+	)
+	echo " - done"
+
+	# Ping each IP so that they get ARP'd, and their MACs appear in /proc/net/arp
+	echo -n "Pinging"
+	pings=$(
+		ips=$(echo "$iphost" | awk '{ print $1; }')
+		for ip in $ips; do ping -c1 -w0.03 $ip; done
+	)
+	echo " - done"
+
+	# Get IP=mac-address
+	echo -n "Getting ip/mac info"
+	ipmac=$(
+		awk '{ if (NR > 1 && $3 != "0x0") print $1 "\t" $4; }' < /proc/net/arp |
+		sort $sortstr
+	)
+	echo " - done"
+
+	# Inner join (produce hostname=mac-address)
+	echo -n "Inner join"
+	output=$(
+		mkfifo iphost.tmp
+		mkfifo ipmac.tmp
+		trap "rm -f ipmac.tmp iphost.tmp" EXIT
+		echo "$iphost" >iphost.tmp &
+		echo "$ipmac" >ipmac.tmp &
+		sqlite3 <<EOF
+create table iphost(ip string, host string);
+create table ipmac(ip string, mac string);
+.separator "\t"
+.import iphost.tmp iphost
+.import ipmac.tmp ipmac
+select ipmac.ip, ipmac.mac, iphost.host from iphost left join ipmac where ipmac.ip=iphost.ip;
+drop table iphost;
+drop table ipmac;
+.quit
+EOF
+	)
+	echo " - done"
+
+	# Update database
+	echo -n "Updating database"
+	(
+		touch "macs.db"
+		mkfifo output.tmp
+		trap "rm -f output.tmp" EXIT
+		echo "$output" >output.tmp &
+		join -j1 -a1 -a2 <(sort $sortstr output.tmp) <(sort $sortstr macs.db) |
+		awk '{print $1 "\t" $2 "\t" $3;}' |
+		sed -r 's/^\s*(.*\S)*$/\1/;/^$/d' > macs.db.new
+	) && mv macs.db.new macs.db
+	echo " - done"
+
+	# Optional: Separate file containing time/dates of last few updates
+	#(cat macs.last 2> /dev/null; date +"%c") | tail 1> macs.last.new && mv macs.last.new macs.last
+
+	exit 0
+fi
+
+
+
+# No / invalid command?  Display help
+echo "Syntax: macs [show|update|clear]"
+exit 1

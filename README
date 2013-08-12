@@ -1,0 +1,40 @@
+Title: 	MACS
+
+Description:
+	Daemon to keep track of machines that have been on the network, web
+	interface to access the list and send pings / wake-on-lan packets to
+	the machines.  Uses script at /etc/macs/macs to scan for and to store
+	MAC addresses, IP addresses and hostnames in /etc/macs/macs.db.
+
+Author:
+	Mark K Cowan, mark@battlesnake.co.uk
+
+Requires:
+	Web server (e.g. apache/lighttpd) with PHP processor.
+	nmap, perl, bash, awk, sed, tr, column, cron
+
+Installation:
+	Web interface goes to the root folder of your server (I use a Raspberry
+	Pi / Debian / Lighttpd).
+	For example, /var/www/public_html or /var/www/v-host/public_html.
+
+	Open a port on your router and point it at the server (I use port 8080).
+
+	Add '/etc/macs update' to root's crontab (I set this to run hourly).
+
+	Enable wake-on-lan in BIOS and adapter config for any machines that you
+	wish to remotely activate.
+
+	Test your setup by accessing http://<your address>:<your port> from an
+	external network.
+
+Example:
+	My work PC is quite power hungry, so I put it into S3 standby when not
+	in use.  If I need to access it while I'm out, then I use the HTTP
+	wake-on-lan interface provided by this package to turn the PC on, I
+	then wait a few seconds for the PC to regain full network connectivity
+	before finally connecting to it via my favourite remote-desktop
+	software.
+
+	The target PC can be running Windows or Linux, I've personally tested
+	with Windows Server 2003 x64, Ubuntu 11.04 x64 and Arch x64.

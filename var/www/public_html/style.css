@@ -1,0 +1,41 @@
+table {
+	text-align: center;
+	font-family: fixed,monospace,'Lucida Console';
+	background: #eef;
+	border-radius: 30px;
+	margin-top: 1em;
+	margin-bottom: 1em;
+	border-collapse: collapse;
+	border-width: 0;
+}
+
+th {
+	font-weight: bold;
+	text-align: center;
+}
+
+td {
+	min-width: 8em;
+	text-align: right;
+	padding-right: 0.5em;
+	border-width: 0;
+}
+
+td:first-child {
+	font-weight: bold;
+}
+
+td,th {
+	border: 1px solid #ddf;
+}
+
+caption {
+	font-weight: bold;
+}
+
+#intervals {
+	font-size: 9pt;
+	text-align: center;
+	max-width: 750px;
+}
+

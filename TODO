@@ -1,0 +1,9 @@
+Cron script:
+	Extra column (datetime) specifying when the machine was last detected
+
+Web interface:   
+	Implement UPnP,
+	"PING" command,
+	input sanitisation,
+	external password,
+	secure authentication
